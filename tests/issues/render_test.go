@@ -248,7 +248,12 @@ func TestIsManagedContent(t *testing.T) {
 	}{
 		{"marker at byte zero", marker + "\n\n# Issues\n", true},
 		{"marker after frontmatter", "---\nid: 7\n---\n" + marker + "\n\n# ISS-0007 — Title\n", true},
+		{"marker on CRLF line", "---\r\nid: 7\r\n---\r\n" + marker + "\r\n\r\n# ISS-0007 — Title\r\n", true},
 		{"marker without any heading", marker + "\nno headings here\n", true},
+		{"marker embedded in prose before heading", "This note mentions " + marker + " in prose.\n\n# Personal notes\n", false},
+		{"marker embedded in frontmatter", "---\ntitle: \"A " + marker + " mention\"\n---\n\n# Personal notes\n", false},
+		{"marker with leading whitespace", "  " + marker + "\n\n# Personal notes\n", false},
+		{"marker with trailing text", marker + " not really\n\n# Personal notes\n", false},
 		{"marker only inside user body", "# My notes\n\nQuoting " + marker + " here.\n", false},
 		{"no marker", "# Issues\n\nplain file\n", false},
 		{"empty", "", false},

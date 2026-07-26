@@ -20,27 +20,21 @@ func IsManagedName(name string) bool {
 	return name == "index.md" || managedIssueName.MatchString(name)
 }
 
-// IsManagedContent reports whether the content carries the ownership marker
-// before its first top-level Markdown heading. A marker appearing only inside
-// an issue body never grants ownership.
+// IsManagedContent reports whether the content carries the exact ownership
+// marker on its own line before the first top-level Markdown heading. Embedded
+// marker text and a marker appearing only inside an issue body never grant
+// ownership.
 func IsManagedContent(content []byte) bool {
-	markerIndex := bytes.Index(content, []byte(projection.ManagedMarker))
-	if markerIndex < 0 {
-		return false
-	}
-	headingIndex := firstHeadingIndex(content)
-	return headingIndex < 0 || markerIndex < headingIndex
-}
-
-func firstHeadingIndex(content []byte) int {
-	offset := 0
 	for _, line := range bytes.Split(content, []byte("\n")) {
-		if bytes.HasPrefix(line, []byte("# ")) {
-			return offset
+		line = bytes.TrimSuffix(line, []byte("\r"))
+		if bytes.Equal(line, []byte(projection.ManagedMarker)) {
+			return true
 		}
-		offset += len(line) + 1
+		if bytes.HasPrefix(line, []byte("# ")) {
+			return false
+		}
 	}
-	return -1
+	return false
 }
 
 // Render returns the complete projection for the selected issues: one index

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/digimata/gh-render/internal/issues"
 	"github.com/digimata/gh-render/internal/projection"
 )
 
@@ -158,4 +159,39 @@ func TestApplyRevalidatesRemovals(t *testing.T) {
 			t.Errorf("replacement directory disturbed: %v", statErr)
 		}
 	})
+}
+
+func TestApplyPreservesEmbeddedMarkerTextInUnmanagedFile(t *testing.T) {
+	output := t.TempDir()
+	unmanaged := filepath.Join(output, "iss-9999.md")
+	content := []byte("This note mentions <!-- gh-render:managed --> in prose.\n\n# Personal notes\n")
+	if err := os.WriteFile(unmanaged, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	plan, err := projection.BuildPlan(
+		output,
+		[]projection.File{{
+			Name:    "index.md",
+			Content: []byte(projection.ManagedMarker + "\n\n# Issues\n"),
+		}},
+		projection.Ownership{
+			IsManagedName:    issues.IsManagedName,
+			IsManagedContent: issues.IsManagedContent,
+		},
+	)
+	if err != nil {
+		t.Fatalf("BuildPlan: %v", err)
+	}
+	if err := plan.Apply(); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	surviving, err := os.ReadFile(unmanaged)
+	if err != nil {
+		t.Fatalf("read unmanaged file: %v", err)
+	}
+	if !bytes.Equal(surviving, content) {
+		t.Errorf("unmanaged file changed: %q", surviving)
+	}
 }
