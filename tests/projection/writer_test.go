@@ -161,7 +161,7 @@ func TestApplyRevalidatesRemovals(t *testing.T) {
 	})
 }
 
-func TestApplyPreservesEmbeddedMarkerTextInUnmanagedFile(t *testing.T) {
+func TestBuildPlanRejectsEmbeddedMarkerTextInManagedName(t *testing.T) {
 	output := t.TempDir()
 	unmanaged := filepath.Join(output, "iss-9999.md")
 	content := []byte("This note mentions <!-- gh-render:managed --> in prose.\n\n# Personal notes\n")
@@ -169,7 +169,7 @@ func TestApplyPreservesEmbeddedMarkerTextInUnmanagedFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	plan, err := projection.BuildPlan(
+	_, err := projection.BuildPlan(
 		output,
 		[]projection.File{{
 			Name:    "index.md",
@@ -180,11 +180,11 @@ func TestApplyPreservesEmbeddedMarkerTextInUnmanagedFile(t *testing.T) {
 			IsManagedContent: issues.IsManagedContent,
 		},
 	)
-	if err != nil {
-		t.Fatalf("BuildPlan: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "unmanaged file with managed name") {
+		t.Fatalf("BuildPlan error = %v, want unmanaged-name conflict", err)
 	}
-	if err := plan.Apply(); err != nil {
-		t.Fatalf("Apply: %v", err)
+	if _, err := os.Lstat(filepath.Join(output, "index.md")); !os.IsNotExist(err) {
+		t.Errorf("expected file created during planning: %v", err)
 	}
 
 	surviving, err := os.ReadFile(unmanaged)

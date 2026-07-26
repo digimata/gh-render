@@ -188,15 +188,16 @@ func (plan *Plan) inventory(output string) error {
 		if entry.IsDir() || entry.Type()&fs.ModeSymlink != 0 || !entry.Type().IsRegular() {
 			continue
 		}
-		content, err := os.ReadFile(filepath.Join(plan.Root, name))
+		target := filepath.Join(plan.Root, name)
+		content, err := os.ReadFile(target)
 		if err != nil {
-			return fmt.Errorf("projection: read %s: %w", filepath.Join(plan.Root, name), err)
+			return fmt.Errorf("projection: read %s: %w", target, err)
 		}
 		if !plan.ownership.IsManagedContent(content) {
-			continue
+			return fmt.Errorf("projection: refusing unmanaged file with managed name %s", target)
 		}
 		plan.Changes = append(plan.Changes, Change{Kind: Remove, Path: filepath.Join(output, name)})
-		plan.removals = append(plan.removals, plannedRemoval{target: filepath.Join(plan.Root, name)})
+		plan.removals = append(plan.removals, plannedRemoval{target: target})
 	}
 	return nil
 }

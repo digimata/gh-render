@@ -2,6 +2,12 @@
 
 All notable changes to `gh-render` are recorded here.
 
+## Unreleased
+
+### Fixed
+
+- Reject unmanaged regular files that occupy renderer-owned names before any projection mutation.
+
 ## 0.1.1 — 2026.07.26
 
 ### Fixed

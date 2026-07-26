@@ -711,7 +711,8 @@ For every expected target:
 For every nonexpected direct child:
 
 - managed name plus managed regular content → `Remove`;
-- unmanaged file → ignore;
+- managed name plus unmanaged regular content → fail the entire plan;
+- unmanaged name → ignore;
 - directory → ignore;
 - symlink → ignore and never follow.
 
@@ -879,8 +880,9 @@ Cover:
 - missing output directory without mutation in check and dry-run;
 - create, update, remove, and no-op;
 - unmanaged expected target rejection;
+- unmanaged matching-file rejection;
+- unrelated unmanaged file preservation;
 - expected directory and symlink rejection;
-- stale unmanaged file preservation;
 - stale managed file removal;
 - stale directory and symlink preservation;
 - duplicate and traversing expected names;

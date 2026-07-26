@@ -260,11 +260,35 @@ func TestBuildPlanRejectsDirectoryAndSymlinkTargets(t *testing.T) {
 	})
 }
 
-func TestBuildPlanIgnoresUnownedStrays(t *testing.T) {
+func TestBuildPlanRejectsUnmanagedFileWithManagedName(t *testing.T) {
 	output := t.TempDir()
 	unmanagedContent := []byte("# my own iss file\n")
-	writeFile(t, filepath.Join(output, "iss-7777.md"), unmanagedContent)          // managed name, unmanaged content
-	writeFile(t, filepath.Join(output, "notes.md"), []byte("notes\n"))            // unmanaged name
+	unmanaged := filepath.Join(output, "iss-7777.md")
+	writeFile(t, unmanaged, unmanagedContent)
+
+	_, err := projection.BuildPlan(output, []projection.File{
+		{Name: "index.md", Content: managed("index")},
+	}, testOwnership())
+	if err == nil {
+		t.Fatal("BuildPlan succeeded, want unmanaged-name conflict")
+	}
+	if !strings.Contains(err.Error(), "unmanaged file with managed name") ||
+		!strings.Contains(err.Error(), unmanaged) {
+		t.Fatalf("error = %v, want conflicting path", err)
+	}
+	if _, err := os.Lstat(filepath.Join(output, "index.md")); !os.IsNotExist(err) {
+		t.Errorf("expected file created during planning: %v", err)
+	}
+	surviving, err := os.ReadFile(unmanaged)
+	if err != nil || !bytes.Equal(surviving, unmanagedContent) {
+		t.Errorf("unmanaged file modified: %q err=%v", surviving, err)
+	}
+}
+
+func TestBuildPlanIgnoresUnownedAndNonRegularStrays(t *testing.T) {
+	output := t.TempDir()
+	notesContent := []byte("notes\n")
+	writeFile(t, filepath.Join(output, "notes.md"), notesContent)
 	if err := os.Mkdir(filepath.Join(output, "iss-6666.md"), 0o755); err != nil { // directory with managed name
 		t.Fatal(err)
 	}
@@ -285,9 +309,9 @@ func TestBuildPlanIgnoresUnownedStrays(t *testing.T) {
 	if err := plan.Apply(); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
-	surviving, err := os.ReadFile(filepath.Join(output, "iss-7777.md"))
-	if err != nil || !bytes.Equal(surviving, unmanagedContent) {
-		t.Errorf("unmanaged stray modified: %q err=%v", surviving, err)
+	notes, err := os.ReadFile(filepath.Join(output, "notes.md"))
+	if err != nil || !bytes.Equal(notes, notesContent) {
+		t.Errorf("unowned file modified: %q err=%v", notes, err)
 	}
 	if _, err := os.Lstat(filepath.Join(output, "iss-5555.md")); err != nil {
 		t.Errorf("symlink removed: %v", err)

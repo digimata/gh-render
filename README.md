@@ -122,6 +122,8 @@ Generated files contain an ownership marker. A second render against unchanged G
 3. It validates the complete write plan before changing disk state.
 4. It writes each file through an atomic replacement.
 
+A filename matching the active renderer's managed pattern is reserved. If an unmanaged regular file occupies such a name—even outside the current selection—the complete render fails before mutation. Unrelated files, directories, and symlinks are ignored.
+
 A filtered render is a complete projection of that filter. Managed files outside the selected set become stale and are removed in normal mode. Use `--dry-run` before changing an existing projection.
 
 The [global specification](docs/spec.md) defines deterministic output, path validation, exit codes, and validation modes.
