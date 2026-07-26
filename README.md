@@ -2,7 +2,7 @@
 
 > A GitHub CLI extension that renders GitHub objects into deterministic local Markdown projections. GitHub remains authoritative; local files become searchable, linkable repository artifacts.
 
-Status: pre-release. The command shell and specifications are complete; the issues renderer is the first implementation target.
+The issues renderer is implemented and verified against a live repository. `v0.1.0` is the first release target.
 
 ## Table of Contents
 
@@ -130,8 +130,12 @@ The [global specification](docs/spec.md) defines deterministic output, path vali
 
 ```text
 gh-render/
-├── main.go                  # extension entry point and command routing
-├── main_test.go             # command-routing tests
+├── main.go                  # process entry point
+├── internal/
+│   ├── app/                 # object dispatch, flags, orchestration, exit codes
+│   ├── issues/              # issue fetch, normalization, selection, rendering
+│   └── projection/          # write planning and filesystem safety
+├── tests/                   # black-box test suites and golden fixtures
 ├── docs/
 │   ├── spec.md              # cross-renderer behavioral contract
 │   ├── objects/             # object-specific specifications
@@ -154,8 +158,11 @@ Validation:
 
 ```bash
 go test ./...
+go test -race ./...
 go vet ./...
 go build -o gh-render .
 ```
+
+Automated tests never use the network or the local GitHub configuration. All `_test.go` files and golden fixtures live under `tests/`; production packages contain no test files.
 
 Start with the [global specification](docs/spec.md), then read the specification for the object being changed. Update `CHANGELOG.md` with user-visible behavior.
