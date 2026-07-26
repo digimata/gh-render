@@ -35,8 +35,18 @@ func TestIssuesHelp(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("run() exit code = %d, want 0", exitCode)
 	}
-	if !strings.Contains(stdout.String(), "gh render issues") {
-		t.Fatalf("run() stdout = %q, want issues usage", stdout.String())
+	for _, expected := range []string{
+		"gh render issues",
+		"--label",
+		"--assignee",
+		"--author",
+		"--limit",
+		"--sort",
+		"--order",
+	} {
+		if !strings.Contains(stdout.String(), expected) {
+			t.Fatalf("run() stdout = %q, want %q", stdout.String(), expected)
+		}
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("run() stderr = %q, want empty", stderr.String())

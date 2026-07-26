@@ -27,6 +27,13 @@ Planned flags:
       --output directory  Output directory; defaults to .issues
       --check             Exit non-zero when rendered files are stale
       --dry-run           Report changes without writing files
+      --state state       Filter by open, closed, or all; defaults to all
+      --label name        Require a label; may be repeated
+      --assignee login    Filter by assignee; accepts @me
+      --author login      Filter by issue author; accepts @me
+      --limit number      Keep the highest-ranked positive number of matches
+      --sort field        Rank by updated, created, or number; defaults to updated
+      --order direction   Rank ascending or descending; defaults to desc
 `
 
 func main() {

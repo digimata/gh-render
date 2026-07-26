@@ -33,6 +33,9 @@ gh render issues --repo owner/repo
 gh render issues --output .issues
 gh render issues --check
 gh render issues --dry-run
+gh render issues --limit 20
+gh render issues --label bug --label p0
+gh render issues --state open --assignee @me
 ```
 
 `gh render` without an object displays help. Only `issues` is in v0 scope.

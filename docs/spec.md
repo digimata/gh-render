@@ -33,6 +33,7 @@ The extension reads GitHub and writes local files. It never creates, edits, clos
 | Object | A supported GitHub collection such as issues. |
 | Renderer | The object-specific fetch, normalization, and serialization implementation. |
 | Projection | The complete local file set derived from one object collection. |
+| Selection | The normalized filters, ranking, and limit that determine projection membership. |
 | Managed file | A file containing the exact `gh-render` ownership marker. |
 | Unmanaged file | Any file without that marker, regardless of its filename. |
 | Stale file | A managed file whose expected content differs from disk or whose source object no longer exists. |
@@ -58,13 +59,15 @@ Every renderer supports these common flags:
 
 `--check` and `--dry-run` are mutually exclusive. Repository resolution follows the authenticated GitHub CLI context and produces a clear error when no repository can be resolved.
 
+Object renderers may define selection flags. Different selector types combine with AND unless the object specification states otherwise. Identity aliases such as `@me` are resolved to concrete GitHub logins before selection and rendering.
+
 ## 4. Global rendering contract
 
 Every renderer must satisfy these invariants:
 
 1. GitHub is the sole upstream authority.
 2. Rendering is one-way. No command writes to GitHub.
-3. Identical normalized GitHub data and arguments produce byte-identical files.
+3. Identical normalized GitHub data and normalized selection produce byte-identical files.
 4. Generated output contains no render timestamp, host-specific path, random value, or unstable ordering.
 5. Text files use UTF-8, LF line endings, and one final newline.
 6. Records and collection fields use explicit deterministic ordering.
@@ -76,6 +79,7 @@ Every renderer must satisfy these invariants:
 
 8. A renderer computes and validates its complete write plan before changing disk state.
 9. A successful second render against unchanged GitHub data produces no file changes.
+10. A filtered projection records its normalized selection in the collection index.
 
 ## 5. Filesystem safety
 
@@ -103,7 +107,7 @@ The renderer does not recursively delete directories or follow symlinks during c
 
 Normal mode writes the planned projection and reports a concise summary.
 
-`--dry-run` fetches and renders the full projection, performs all conflict checks, and prints the paths that would be created, replaced, or removed. It does not modify the filesystem.
+`--dry-run` fetches and renders the complete selected projection, performs all conflict checks, and prints the paths that would be created, replaced, or removed. It does not modify the filesystem.
 
 `--check` performs the same read and validation work. It prints a concise stale summary and exits with the stale-projection code when disk differs from the expected projection. It produces no output and exits successfully when the projection is current.
 
@@ -127,12 +131,14 @@ Each object renderer must define:
 1. GitHub inclusion and exclusion rules.
 2. Pagination behavior.
 3. A normalized record model independent of API response structs.
-4. Stable record and collection ordering.
-5. Default output directory.
-6. Managed filename patterns.
-7. File schemas and examples.
-8. Stale-file ownership rules.
-9. Object-specific flags.
-10. Golden rendering and filesystem-safety tests.
+4. Selector combination, ranking, limiting, and tie-breaking behavior.
+5. How normalized selection is recorded in output.
+6. Stable record and collection ordering.
+7. Default output directory.
+8. Managed filename patterns.
+9. File schemas and examples.
+10. Stale-file ownership rules.
+11. Object-specific flags.
+12. Golden rendering and filesystem-safety tests.
 
 Object specifications live under `docs/objects/`. A new renderer requires an approved object specification before implementation.
