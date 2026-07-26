@@ -7,7 +7,7 @@ affects: "gh render issues and v0.1.0"
 
 # gh-render v0 Detailed Implementation Plan
 
-> Implement `gh render issues` as a thin command layer over two private packages: `internal/issues` for GitHub issue behavior and `internal/projection` for safe local materialization. This document is the coding handoff. The behavioral authority remains `docs/spec.md` and `docs/objects/issues.md`.
+> Implement `gh render issues` with a private application layer, an issue-domain package, and a reusable projection writer. This document is the coding handoff. The behavioral authority remains `docs/spec.md` and `docs/objects/issues.md`.
 
 ## Table of Contents
 
@@ -49,6 +49,7 @@ Implementation constraints:
 5. Do not write to GitHub.
 6. Do not weaken unmanaged-file protection to ease the Terrazzo migration.
 7. Do not commit generated `.issues/` until the extension can dogfood itself.
+8. Keep every `_test.go` file and golden fixture under the top-level `tests/` directory.
 
 When this plan conflicts with `docs/spec.md` or `docs/objects/issues.md`, stop and update the authoritative specification before changing behavior.
 
@@ -59,25 +60,30 @@ Implement this tree:
 ```text
 gh-render/
 ├── main.go
-├── main_test.go
-├── issues_command.go
-├── issues_command_test.go
 ├── internal/
+│   ├── app/
+│   │   ├── app.go
+│   │   └── issues_command.go
 │   ├── issues/
 │   │   ├── model.go
 │   │   ├── client.go
-│   │   ├── client_test.go
 │   │   ├── select.go
+│   │   └── render.go
+│   └── projection/
+│       ├── projection.go
+│       └── writer.go
+├── tests/
+│   ├── app/
+│   │   └── app_test.go
+│   ├── issues/
+│   │   ├── client_test.go
 │   │   ├── select_test.go
-│   │   ├── render.go
 │   │   ├── render_test.go
 │   │   └── testdata/
 │   │       ├── issue.golden.md
 │   │       └── index.golden.md
 │   └── projection/
-│       ├── projection.go
 │       ├── projection_test.go
-│       ├── writer.go
 │       └── writer_test.go
 ├── docs/
 ├── .plan/
@@ -88,16 +94,20 @@ Responsibilities:
 
 | Location | Responsibility |
 | --- | --- |
-| `main.go` | Process entry point, signal-aware context, root object dispatch, exit code. |
-| `issues_command.go` | Flag parsing, repository resolution, dependency construction, orchestration, user output. |
+| `main.go` | Process entry point and signal-aware context. |
+| `internal/app/app.go` | Root object dispatch, dependency seam, stdout/stderr, and exit codes. |
+| `internal/app/issues_command.go` | Flag parsing, repository resolution, dependency construction, orchestration, user output. |
 | `internal/issues/model.go` | Repository, issue, selection, and enum types. |
 | `internal/issues/client.go` | Authenticated REST calls, pagination, API normalization. |
 | `internal/issues/select.go` | Alias resolution, filtering, ranking, limiting, final ordering. |
 | `internal/issues/render.go` | Deterministic issue and index Markdown. |
 | `internal/projection/projection.go` | Expected-file, ownership, change, and plan types. |
 | `internal/projection/writer.go` | Disk inventory, conflict detection, dry-run/check plan, atomic application. |
+| `tests/` | Black-box application, package, golden, and filesystem tests. |
 
 Do not create `internal/github`, `internal/select`, or `internal/render`. Those boundaries split one issue feature across packages and force the normalized issue type through unnecessary APIs.
+
+Delete the scaffold's root `main_test.go` after its help and dispatch cases move to `tests/app/app_test.go`. Production directories contain no `_test.go` files.
 
 ## 3. Dependency direction
 
@@ -105,6 +115,9 @@ The package graph is:
 
 ```text
 package main
+└── internal/app
+
+internal/app
 ├── go-gh/api
 ├── go-gh/repository
 ├── internal/issues
@@ -117,7 +130,7 @@ internal/projection
 └── standard library
 ```
 
-`internal/issues` may return `projection.File` values from its renderer. It must not call the filesystem writer. The root command owns orchestration:
+`internal/issues` may return `projection.File` values from its renderer. It must not call the filesystem writer. `internal/app` owns orchestration:
 
 ```text
 parse flags
@@ -131,38 +144,39 @@ parse flags
 → check, report, or apply
 ```
 
+The packages under `tests/` may import all three `internal` packages because their import paths remain inside `github.com/digimata/gh-render`. They exercise exported internal contracts without creating a public library API.
+
 Future object packages may reuse `internal/projection`. Shared GitHub transport should be extracted only after a second renderer demonstrates a real common API.
 
-## 4. Root command layer
+## 4. Application and command layer
 
 ### 4.1 — Process entry
 
-Refactor `main.go` around a context:
+Reduce `main.go` to process setup:
 
 ```go
 func main() {
     ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
     defer stop()
 
-    os.Exit(run(ctx, os.Args[1:], os.Stdout, os.Stderr))
+    os.Exit(app.Run(
+        ctx,
+        os.Args[1:],
+        os.Stdout,
+        os.Stderr,
+        app.DefaultDependencies(),
+    ))
 }
-
-func run(
-    ctx context.Context,
-    arguments []string,
-    stdout io.Writer,
-    stderr io.Writer,
-) int
 ```
 
-Keep root help and unknown-object behavior in `main.go`. Move all issue-specific behavior to `issues_command.go`.
+Keep root help, unknown-object behavior, and issue-specific execution in `internal/app`. `package main` contains no business logic.
 
 ### 4.2 — Parsed options
 
 Use the standard `flag` package with `flag.ContinueOnError`. Suppress the package's default output and return one consistent usage message.
 
 ```go
-type issuesCommandOptions struct {
+type IssuesCommandOptions struct {
     Repository string
     Output     string
     Check      bool
@@ -200,7 +214,7 @@ func (values *stringListFlag) Set(value string) error
 `parseIssuesOptions` returns usage errors without touching GitHub or disk:
 
 ```go
-func parseIssuesOptions(arguments []string) (issuesCommandOptions, error)
+func parseIssuesOptions(arguments []string) (IssuesCommandOptions, error)
 ```
 
 Reject:
@@ -237,32 +251,40 @@ Relevant dependency sources:
 
 ### 4.4 — Test seam
 
-Do not inject every function independently. Inject one executor at the command boundary:
+Do not inject every function independently. Export one executor seam from the internal application package:
 
 ```go
-type issuesExecutor func(
+type IssuesExecutor func(
     ctx context.Context,
-    options issuesCommandOptions,
-) (issuesCommandResult, error)
+    options IssuesCommandOptions,
+) (IssuesCommandResult, error)
 
-type issuesCommandResult struct {
+type IssuesCommandResult struct {
     Output string
 }
 
-func runIssues(
+type Dependencies struct {
+    ExecuteIssues IssuesExecutor
+}
+
+func DefaultDependencies() Dependencies
+
+func Run(
     ctx context.Context,
     arguments []string,
     stdout io.Writer,
     stderr io.Writer,
-    execute issuesExecutor,
+    dependencies Dependencies,
 ) int
 ```
 
-Production passes `executeIssues`. Command tests pass a fake executor. This covers flag handling, help, exit codes, stdout, and stderr without network or filesystem setup.
+`DefaultDependencies` binds the unexported production `executeIssues`. Tests under `tests/app` pass `Dependencies` with a fake executor. This covers flag handling, help, exit codes, stdout, and stderr without importing `package main`, starting a subprocess, or touching network and disk.
 
-For a stale check, `executeIssues` returns the deterministic change list in `issuesCommandResult.Output` together with `errProjectionStale`. `runIssues` writes the result to stdout and maps the sentinel to exit `3` without formatting it as an operational error.
+For a stale check, `executeIssues` returns the deterministic change list in `IssuesCommandResult.Output` together with `ErrProjectionStale`. `Run` writes the result to stdout and maps the sentinel to exit `3` without formatting it as an operational error.
 
 `executeIssues` uses concrete package implementations. Lower packages use their own narrow test seams.
+
+These types are exported only because black-box tests need them. Go's `internal` rule prevents external modules from importing them.
 
 ## 5. Issue domain model
 
@@ -718,7 +740,7 @@ No recursive deletion is permitted.
 
 ### 10.1 — Exit mapping
 
-Root command mapping:
+Application command mapping:
 
 | Condition | Exit |
 | --- | --- |
@@ -727,13 +749,13 @@ Root command mapping:
 | Invalid object, flag, selector, or combination | `2` |
 | Stale check | `3` |
 
-Use a package-main sentinel error:
+Export one internal-app sentinel so black-box application tests can return it from a fake executor:
 
 ```go
-var errProjectionStale = errors.New("projection is stale")
+var ErrProjectionStale = errors.New("projection is stale")
 ```
 
-Only a stale `--check` returns `errProjectionStale`. It may return the change list alongside that error. Do not infer staleness by matching error strings.
+Only a stale `--check` returns `ErrProjectionStale`. It may return the change list alongside that error. Do not infer staleness by matching error strings.
 
 ### 10.2 — Output
 
@@ -773,7 +795,9 @@ Wrap errors with operation and subject. Do not print tokens, response bodies con
 
 No automated test uses the network or the user's GitHub configuration.
 
-### 11.1 — Command tests
+### 11.1 — Application tests
+
+Implement in `tests/app/app_test.go` with package `app_test`. Import `internal/app` and pass fake `app.Dependencies`.
 
 Cover:
 
@@ -791,7 +815,7 @@ Cover:
 
 ### 11.2 — Client tests
 
-Use a fake `RESTDoer`.
+Implement in `tests/issues/client_test.go` with package `issues_test`. Use a fake `RESTDoer`.
 
 Cover:
 
@@ -809,7 +833,7 @@ Cover:
 
 ### 11.3 — Selection tests
 
-Table-test:
+Implement in `tests/issues/select_test.go` with package `issues_test`. Table-test:
 
 - each state;
 - one and repeated labels;
@@ -825,6 +849,8 @@ Table-test:
 - input immutability.
 
 ### 11.4 — Rendering tests
+
+Implement in `tests/issues/render_test.go`. Store fixtures under `tests/issues/testdata/`.
 
 Golden files cover:
 
@@ -844,7 +870,9 @@ Render the same input twice and compare bytes.
 
 ### 11.5 — Projection tests
 
-Use `t.TempDir`.
+Implement in `tests/projection/` with package `projection_test`. Use `t.TempDir`.
+
+Every test imports only exported contracts from the relevant `internal` package. Test private helpers through their observable public behavior. Do not add test-only exports or place white-box tests beside production source.
 
 Cover:
 
@@ -876,8 +904,9 @@ Implement in this order. Keep each step buildable and tested.
 
 1. Add domain enums and structs.
 2. Add options parsing and validation.
-3. Refactor root execution around context and executor injection.
-4. Replace the stub command test.
+3. Move command execution into `internal/app`.
+4. Reduce `main.go` to process setup.
+5. Move the scaffold tests into `tests/app` and delete `main_test.go`.
 
 Gate:
 
