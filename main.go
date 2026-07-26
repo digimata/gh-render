@@ -2,25 +2,62 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/cli/go-gh/v2/pkg/api"
+	"io"
+	"os"
 )
 
+const rootUsage = `Generate deterministic local projections of GitHub objects.
+
+Usage:
+  gh render <object> [flags]
+
+Objects:
+  issues    Render repository issues as Markdown
+
+Run "gh render <object> --help" for object-specific help.
+`
+
+const issuesUsage = `Render repository issues as Markdown.
+
+Usage:
+  gh render issues [flags]
+
+Planned flags:
+      --repo owner/repo    Repository to read; defaults to the current repository
+      --output directory  Output directory; defaults to .issues
+      --check             Exit non-zero when rendered files are stale
+      --dry-run           Report changes without writing files
+`
+
 func main() {
-	fmt.Println("hi world, this is the gh-render extension!")
-	client, err := api.DefaultRESTClient()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	response := struct {Login string}{}
-	err = client.Get("user", &response)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Printf("running as %s\n", response.Login)
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
-// For more examples of using go-gh, see:
-// https://github.com/cli/go-gh/blob/trunk/example_gh_test.go
+func run(arguments []string, stdout, stderr io.Writer) int {
+	if len(arguments) == 0 || isHelp(arguments[0]) {
+		fmt.Fprint(stdout, rootUsage)
+		return 0
+	}
+
+	switch arguments[0] {
+	case "issues":
+		return runIssues(arguments[1:], stdout, stderr)
+	default:
+		fmt.Fprintf(stderr, "unknown object %q\n\n%s", arguments[0], rootUsage)
+		return 2
+	}
+}
+
+func runIssues(arguments []string, stdout, stderr io.Writer) int {
+	if len(arguments) > 0 && isHelp(arguments[0]) {
+		fmt.Fprint(stdout, issuesUsage)
+		return 0
+	}
+
+	fmt.Fprintln(stderr, "the issues renderer is not implemented yet")
+	return 1
+}
+
+func isHelp(argument string) bool {
+	return argument == "-h" || argument == "--help" || argument == "help"
+}

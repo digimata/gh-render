@@ -1,4 +1,4 @@
-module github.com/dremnik/gh-render
+module github.com/digimata/gh-render
 
 go 1.25.0
 
