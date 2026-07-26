@@ -109,7 +109,7 @@ The default output is:
 └── iss-0123.md
 ```
 
-Each issue file contains GitHub metadata, a source link, and the issue body. The index records the source repository and normalized selection.
+Each issue file contains GitHub metadata, a source link, and the issue body. The index records the source repository, the normalized selection, and a `Data as of` line carrying the newest `updated_at` in the projection — derived from GitHub data, never the render clock, so output stays deterministic.
 
 Generated files contain an ownership marker. A second render against unchanged GitHub data produces byte-identical output.
 

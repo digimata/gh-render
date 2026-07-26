@@ -14,7 +14,7 @@ updated_at: "2026-03-15T00:00:00Z"
 
 # ISS-0033 — He said "hi" \ C:\path | naïve `code` — ✓
 
-GitHub: [#33](https://github.com/octo/repo/issues/33)
+GitHub: [#33 — He said "hi" \ C:\path | naïve `code` — ✓](https://github.com/octo/repo/issues/33)
 
 Line one
 Line | two "quoted" \backslash

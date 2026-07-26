@@ -87,7 +87,7 @@ func RenderIssue(issue Issue) ([]byte, error) {
 
 	buffer.WriteString(projection.ManagedMarker + "\n\n")
 	fmt.Fprintf(&buffer, "# ISS-%04d — %s\n\n", issue.Number, issue.Title)
-	fmt.Fprintf(&buffer, "GitHub: [#%d](%s)\n", issue.Number, issue.URL)
+	fmt.Fprintf(&buffer, "GitHub: [#%d — %s](%s)\n", issue.Number, issue.Title, issue.URL)
 
 	if body := normalizeBody(issue.Body); body != "" {
 		buffer.WriteString("\n")
@@ -105,12 +105,14 @@ func RenderIndex(repository Repository, selection ResolvedSelection, selected []
 	buffer.WriteString(projection.ManagedMarker + "\n\n# Issues\n\n")
 	fmt.Fprintf(&buffer, "> Generated from [%s](%s). GitHub is canonical.\n", repository.Slug(), repository.IssuesURL())
 	buffer.WriteString(">\n")
-	fmt.Fprintf(&buffer, "> Selection: %s.\n\n", selectionSummary(selection))
+	fmt.Fprintf(&buffer, "> Selection: %s.\n", selectionSummary(selection))
+	buffer.WriteString(">\n")
+	fmt.Fprintf(&buffer, "> Data as of: %s.\n\n", dataAsOf(selected))
 
 	buffer.WriteString("| Issue | State | Labels | Updated |\n")
 	buffer.WriteString("| --- | --- | --- | --- |\n")
 	for _, issue := range selected {
-		title := markdownTableCell(fmt.Sprintf("%04d — %s", issue.Number, issue.Title))
+		title := markdownTableCell(fmt.Sprintf("ISS-%04d — %s", issue.Number, issue.Title))
 		fmt.Fprintf(&buffer, "| [%s](%s) | %s | %s | %s |\n",
 			title,
 			issueFileName(issue.Number),
@@ -138,6 +140,22 @@ func selectionSummary(selection ResolvedSelection) string {
 		selection.Sort,
 		selection.Order,
 	)
+}
+
+// dataAsOf returns the newest updated_at across the selected issues as a UTC
+// RFC 3339 value, or "none" for an empty selection. It is derived from GitHub
+// data only, keeping unchanged renders byte-identical.
+func dataAsOf(selected []Issue) string {
+	if len(selected) == 0 {
+		return "none"
+	}
+	newest := selected[0].UpdatedAt
+	for _, issue := range selected[1:] {
+		if issue.UpdatedAt.After(newest) {
+			newest = issue.UpdatedAt
+		}
+	}
+	return newest.UTC().Format(time.RFC3339)
 }
 
 func anyOrValue(value string) string {

@@ -14,4 +14,4 @@ updated_at: "2026-01-02T03:04:05Z"
 
 # ISS-0012 — Placeholder
 
-GitHub: [#12](https://github.com/octo/repo/issues/12)
+GitHub: [#12 — Placeholder](https://github.com/octo/repo/issues/12)

@@ -14,7 +14,7 @@ updated_at: "2026-07-26T20:00:00Z"
 
 # ISS-0007 — Make file imports atomically non-overwriting
 
-GitHub: [#7](https://github.com/octo/repo/issues/7)
+GitHub: [#7 — Make file imports atomically non-overwriting](https://github.com/octo/repo/issues/7)
 
 Imports must never clobber files.
 

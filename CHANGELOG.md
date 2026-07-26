@@ -2,7 +2,16 @@
 
 All notable changes to `gh-render` are recorded here.
 
-## Unreleased
+## 0.1.2 — 2026.07.26
+
+### Added
+
+- A deterministic `Data as of` index line recording the newest `updated_at` across the selected issues.
+
+### Changed
+
+- The issue file's GitHub link now reads `#7 — Title` instead of the bare number.
+- Index table entries now read `ISS-0007 — Title`, matching the issue heading form.
 
 ### Fixed
 

@@ -149,6 +149,31 @@ func TestGoldenIndexFiltered(t *testing.T) {
 	}
 }
 
+func TestIndexDataAsOfUsesNewestUpdate(t *testing.T) {
+	older := fullIssue()
+	older.UpdatedAt = time.Date(2026, 7, 1, 8, 0, 0, 0, time.UTC)
+	newest := minimalIssue()
+	newest.UpdatedAt = time.Date(2026, 7, 20, 14, 30, 0, 0, time.UTC)
+
+	content, err := issues.RenderIndex(renderRepository, baseSelection(), []issues.Issue{older, newest})
+	if err != nil {
+		t.Fatalf("RenderIndex: %v", err)
+	}
+	if !bytes.Contains(content, []byte("> Data as of: 2026-07-20T14:30:00Z.\n")) {
+		t.Errorf("index missing newest updated_at data line:\n%s", content)
+	}
+}
+
+func TestIndexDataAsOfEmptySelection(t *testing.T) {
+	content, err := issues.RenderIndex(renderRepository, baseSelection(), nil)
+	if err != nil {
+		t.Fatalf("RenderIndex: %v", err)
+	}
+	if !bytes.Contains(content, []byte("> Data as of: none.\n")) {
+		t.Errorf("empty selection must render a none data line:\n%s", content)
+	}
+}
+
 func TestRenderFileNamesAndOrder(t *testing.T) {
 	long := minimalIssue()
 	long.Number = 12345
@@ -206,7 +231,7 @@ func TestRenderIssueEmptyBodyEndsAfterLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RenderIssue: %v", err)
 	}
-	if !bytes.HasSuffix(content, []byte("GitHub: [#12](https://github.com/octo/repo/issues/12)\n")) {
+	if !bytes.HasSuffix(content, []byte("GitHub: [#12 — Placeholder](https://github.com/octo/repo/issues/12)\n")) {
 		t.Errorf("empty-body file must end at the GitHub link:\n%q", content)
 	}
 }

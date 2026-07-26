@@ -162,7 +162,7 @@ The visible document begins:
 ```markdown
 # ISS-0007 — Make file imports atomically non-overwriting
 
-GitHub: [#7](https://github.com/owner/repository/issues/7)
+GitHub: [#7 — Make file imports atomically non-overwriting](https://github.com/owner/repository/issues/7)
 ```
 
 The GitHub issue body follows the link. The renderer does not rewrite headings, lists, links, or prose. It normalizes line endings to LF, removes trailing blank lines, and writes one final newline.
@@ -179,16 +179,20 @@ The GitHub issue body follows the link. The renderer does not rewrite headings, 
 > Generated from [owner/repository](https://github.com/owner/repository/issues). GitHub is canonical.
 >
 > Selection: state=open; labels=["bug","p0"]; assignee=dremnik; author=any; limit=20; sort=updated; order=desc.
+>
+> Data as of: 2026-07-26T19:37:25Z.
 ```
 
 The selection line always appears and uses concrete normalized values. Unset selectors render as `any`; an omitted limit renders as `all`. Labels use a compact JSON array sorted lexically. The output path is not embedded because it may contain a host-specific absolute path.
+
+The data line always appears and records the newest `updated_at` timestamp across the selected issues as a UTC RFC 3339 value. It is derived entirely from GitHub data, never from the render clock, so unchanged upstream data still produces byte-identical output. An empty selection renders `Data as of: none.`
 
 The issue table is sorted by ascending issue number:
 
 ```markdown
 | Issue | State | Labels | Updated |
 | --- | --- | --- | --- |
-| [0007 — Make file imports atomically non-overwriting](iss-0007.md) | open | — | 2026-07-26 |
+| [ISS-0007 — Make file imports atomically non-overwriting](iss-0007.md) | open | — | 2026-07-26 |
 ```
 
 Pipes and newlines in table cells are escaped. Empty labels render as an em dash. Nonempty labels render as comma-separated inline-code values in lexical order.
