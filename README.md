@@ -141,7 +141,7 @@ gh-render/
 └── CHANGELOG.md
 ```
 
-The current implementation plan is [.plan/v0.md](.plan/v0.md). The rendering-model decision is [ADR-001](docs/.decisions/adr-001-rendering-model.md).
+The current implementation plan is [.plan/v0.md](.plan/v0.md). The detailed coding handoff is [.plan/v0-implementation.md](.plan/v0-implementation.md). The rendering-model decision is [ADR-001](docs/.decisions/adr-001-rendering-model.md).
 
 ## 8. Development
 

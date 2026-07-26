@@ -12,3 +12,4 @@ All notable changes to `gh-render` are recorded here.
 - Rendering-model architecture decision.
 - v0 implementation and release plan.
 - Contributor-oriented README and simplified two-package v0 source layout.
+- Detailed v0 coding handoff with concrete types, package APIs, algorithms, and tests.
