@@ -2,6 +2,12 @@
 
 All notable changes to `gh-render` are recorded here.
 
+## Unreleased
+
+### Fixed
+
+- Require the ownership marker to occupy its own line so embedded marker text cannot grant file ownership.
+
 ## 0.1.0 — 2026.07.26
 
 ### Added
@@ -19,7 +25,3 @@ All notable changes to `gh-render` are recorded here.
 - Deterministic issue and index Markdown with JSON-quoted frontmatter and a recorded normalized selection.
 - Managed-file ownership protection, atomic per-file replacement, and safe stale-file removal.
 - `--dry-run` change reporting and `--check` staleness validation with the documented exit codes.
-
-### Fixed
-
-- Require the ownership marker to occupy its own line so embedded marker text cannot grant file ownership.
